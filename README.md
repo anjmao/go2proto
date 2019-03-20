@@ -4,6 +4,8 @@ Generate protobuf messages from given go structs.
 
 ### Example
 
-git clone github.com/anjmao/go2proto
+```sh
+git clone git@github.com:anjmao/go2proto.git
 cd go2proto
-go run main.go -f /YourPWD/example/out -p github.com/anjmao/go2proto/example/in
+go run main.go -f ${PWD}/example/out -p github.com/anjmao/go2proto/example/in
+```
