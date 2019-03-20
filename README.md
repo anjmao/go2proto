@@ -5,10 +5,8 @@ Generate Protobuf messages from given go structs. No RPC, not gogo syntax, just 
 ### Example
 
 ```sh
-git clone git@github.com:anjmao/go2proto.git
-cd go2proto
-go build
-./go2proto -f ${PWD}/example/out -p github.com/anjmao/go2proto/example/in
+GO111MODULE=off go get -u github.com/anjmao/go2proto
+go2proto -f ${PWD}/example/out -p github.com/anjmao/go2proto/example/in
 ```
 
 ### Note
