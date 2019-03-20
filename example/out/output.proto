@@ -1,0 +1,36 @@
+syntax = "proto3";
+package proto;
+
+
+message ArrayOfEventFieldItem { 
+  repeated EventFieldItem eventFieldItem = 1;
+}
+
+message EventSubForm {
+  string id = 1;
+  string caption = 2;
+  int32 rank = 3;
+  ArrayOfEventField fields = 4;
+}
+
+message EventField {
+  string id = 1;
+  string name = 2;
+  string fieldType = 3;
+  bool isMandatory = 4;
+  int32 rank = 5;
+  string tag = 6;
+  ArrayOfEventFieldItem items = 7;
+  int32 customFieldOrder = 8;
+}
+
+message ArrayOfEventField { 
+  repeated EventField eventField = 1;
+}
+
+message EventFieldItem {
+  string id = 1;
+  string text = 2;
+  int32 rank = 3;
+}
+
