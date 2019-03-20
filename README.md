@@ -7,7 +7,8 @@ Generate Protobuf messages from given go structs. No RPC, not gogo syntax, just 
 ```sh
 git clone git@github.com:anjmao/go2proto.git
 cd go2proto
-go run main.go -f ${PWD}/example/out -p github.com/anjmao/go2proto/example/in
+go build
+./go2proto -f ${PWD}/example/out -p github.com/anjmao/go2proto/example/in
 ```
 
 ### Note
