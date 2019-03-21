@@ -1,13 +1,19 @@
 package in
 
+type User struct{}
+
 type EventSubForm struct {
-	Id string
+	ID string
 
 	Caption string
 
 	Rank int32
 
 	Fields *ArrayOfEventField
+
+	User User
+
+	PrimitivePointer *int
 }
 
 type ArrayOfEventField struct {
@@ -15,7 +21,7 @@ type ArrayOfEventField struct {
 }
 
 type EventField struct {
-	Id string
+	ID string
 
 	Name string
 
@@ -37,7 +43,7 @@ type ArrayOfEventFieldItem struct {
 }
 
 type EventFieldItem struct {
-	Id string
+	EventFieldItemID string
 
 	Text string
 

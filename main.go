@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 	"unicode"
@@ -26,6 +27,7 @@ func (i *arrFlags) Set(value string) error {
 }
 
 var (
+	filter      = flag.String("filter", "", "Filter struct names.")
 	protoFolder = flag.String("f", "", "Proto output path.")
 	pkgFlags    arrFlags
 )
@@ -53,7 +55,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	msgs := getMessages(pkgs)
+	msgs := getMessages(pkgs, *filter)
 
 	if err := writeOutput(msgs, *protoFolder); err != nil {
 		log.Fatal(err)
@@ -87,8 +89,9 @@ type field struct {
 	IsRepeated bool
 }
 
-func getMessages(pkgs []*packages.Package) []*message {
-	out := []*message{}
+func getMessages(pkgs []*packages.Package, filter string) []*message {
+	var out []*message
+	seen := map[string]struct{}{}
 	for _, p := range pkgs {
 		for _, t := range p.TypesInfo.Defs {
 			if t == nil {
@@ -97,12 +100,18 @@ func getMessages(pkgs []*packages.Package) []*message {
 			if !t.Exported() {
 				continue
 			}
+			if _, ok := seen[t.Name()]; ok {
+				continue
+			}
 			if s, ok := t.Type().Underlying().(*types.Struct); ok {
-				out = appendMessage(out, t, s)
+				seen[t.Name()] = struct{}{}
+				if filter == "" || strings.Contains(t.Name(), filter) {
+					out = appendMessage(out, t, s)
+				}
 			}
 		}
-
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
 }
 
@@ -132,12 +141,27 @@ func appendMessage(out []*message, t types.Object, s *types.Struct) []*message {
 func toProtoFieldTypeName(f *types.Var) string {
 	switch f.Type().Underlying().(type) {
 	case *types.Basic:
-		return f.Type().String()
-	case *types.Slice, *types.Pointer:
+		name := f.Type().String()
+		return normalizeType(name)
+	case *types.Slice, *types.Pointer, *types.Struct:
+		// TODO: this is ugly. Find another way of getting field type name.
 		parts := strings.Split(f.Type().String(), ".")
-		return parts[len(parts)-1]
+		name := parts[len(parts)-1]
+		if name[0] == '*' {
+			name = name[1:]
+		}
+		return normalizeType(name)
 	}
 	return f.Type().String()
+}
+
+func normalizeType(name string) string {
+	switch name {
+	case "int":
+		return "int64"
+	default:
+		return name
+	}
 }
 
 func isRepeated(f *types.Var) bool {
@@ -146,6 +170,9 @@ func isRepeated(f *types.Var) bool {
 }
 
 func toProtoFieldName(name string) string {
+	if len(name) == 2 {
+		return strings.ToLower(name)
+	}
 	r, n := utf8.DecodeRuneInString(name)
 	return string(unicode.ToLower(r)) + name[n:]
 }
