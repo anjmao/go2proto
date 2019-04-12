@@ -11,4 +11,4 @@ go2proto -f ${PWD}/example/out -p github.com/anjmao/go2proto/example/in
 
 ### Note
 
-Generated code may not be perfect but since it just 180 lines of code you are free to adapt it yo your needs.
+Generated code may not be perfect but since it just 180 lines of code you are free to adapt it for your needs.
