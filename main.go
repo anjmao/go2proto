@@ -4,7 +4,6 @@ import (
 	"flag"
 	"go/token"
 	"go/types"
-	"golang.org/x/tools/go/packages"
 	"log"
 	"os"
 	"path/filepath"
@@ -13,6 +12,8 @@ import (
 	"text/template"
 	"unicode"
 	"unicode/utf8"
+
+	"golang.org/x/tools/go/packages"
 )
 
 type arrFlags []string
@@ -202,6 +203,7 @@ message {{.Name}} {
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 
 	return tmpl.Execute(f, msgs)
 }
