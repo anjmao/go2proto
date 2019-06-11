@@ -144,22 +144,37 @@ func toProtoFieldTypeName(f *types.Var) string {
 	case *types.Basic:
 		name := f.Type().String()
 		return normalizeType(name)
-	case *types.Slice, *types.Pointer, *types.Struct:
-		// TODO: this is ugly. Find another way of getting field type name.
-		parts := strings.Split(f.Type().String(), ".")
-		name := parts[len(parts)-1]
-		if name[0] == '*' {
-			name = name[1:]
-		}
+	case *types.Slice:
+		name := splitNameHelper(f)
+		return normalizeType(strings.TrimLeft(name, "[]"))
+
+	case *types.Pointer, *types.Struct:
+		name := splitNameHelper(f)
 		return normalizeType(name)
 	}
 	return f.Type().String()
+}
+
+func splitNameHelper(f *types.Var) string {
+	// TODO: this is ugly. Find another way of getting field type name.
+	parts := strings.Split(f.Type().String(), ".")
+
+	name := parts[len(parts)-1]
+
+	if name[0] == '*' {
+		name = name[1:]
+	}
+	return name
 }
 
 func normalizeType(name string) string {
 	switch name {
 	case "int":
 		return "int64"
+	case "float32":
+		return "float"
+	case "float64":
+		return "double"
 	default:
 		return name
 	}
@@ -185,7 +200,7 @@ package proto;
 {{range .}}
 message {{.Name}} {
 {{- range .Fields}}
-{{- if .IsRepeated}} 
+{{- if .IsRepeated}}
   repeated {{.TypeName}} {{.Name}} = {{.Order}};
 {{- else}}
   {{.TypeName}} {{.Name}} = {{.Order}};
