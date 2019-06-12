@@ -14,6 +14,8 @@ type EventSubForm struct {
 	User User
 
 	PrimitivePointer *int
+
+	SliceInt []int
 }
 
 type ArrayOfEventField struct {
@@ -48,4 +50,7 @@ type EventFieldItem struct {
 	Text string
 
 	Rank int32
+
+	FloatField1 float32
+	FloatField2 float64
 }

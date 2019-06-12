@@ -2,11 +2,11 @@ syntax = "proto3";
 package proto;
 
 
-message ArrayOfEventField { 
+message ArrayOfEventField {
   repeated EventField eventField = 1;
 }
 
-message ArrayOfEventFieldItem { 
+message ArrayOfEventFieldItem {
   repeated EventFieldItem eventFieldItem = 1;
 }
 
@@ -25,6 +25,8 @@ message EventFieldItem {
   string eventFieldItemID = 1;
   string text = 2;
   int32 rank = 3;
+  float floatField1 = 4;
+  double floatField2 = 5;
 }
 
 message EventSubForm {
@@ -34,6 +36,7 @@ message EventSubForm {
   ArrayOfEventField fields = 4;
   User user = 5;
   int64 primitivePointer = 6;
+  repeated int64 sliceInt = 7;
 }
 
 message User {
