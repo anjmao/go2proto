@@ -88,6 +88,7 @@ type field struct {
 	TypeName   string
 	Order      int
 	IsRepeated bool
+	Tags       string
 }
 
 func getMessages(pkgs []*packages.Package, filter string) []*message {
@@ -132,6 +133,7 @@ func appendMessage(out []*message, t types.Object, s *types.Struct) []*message {
 			TypeName:   toProtoFieldTypeName(f),
 			IsRepeated: isRepeated(f),
 			Order:      i + 1,
+			Tags:       s.Tag(i),
 		}
 		msg.Fields = append(msg.Fields, newField)
 	}
@@ -193,23 +195,33 @@ func toProtoFieldName(name string) string {
 	return string(unicode.ToLower(r)) + name[n:]
 }
 
+func escapeQuotes(tag string) string {
+	return strings.Replace(tag, `"`, `\"`, -1)
+}
+
+var FUNC_MAP = template.FuncMap{
+	"escapeQuotes": escapeQuotes,
+}
+
 func writeOutput(msgs []*message, path string) error {
 	msgTemplate := `syntax = "proto3";
 package proto;
+
+import "tagger/tagger.proto";
 
 {{range .}}
 message {{.Name}} {
 {{- range .Fields}}
 {{- if .IsRepeated}}
-  repeated {{.TypeName}} {{.Name}} = {{.Order}};
+  repeated {{.TypeName}} {{.Name}} =  {{if ne .Tags "" }}{{.Order}} [(tagger.tags) = "{{escapeQuotes .Tags}}"]; {{ else }}{{.Order}}; {{ end }}
 {{- else}}
-  {{.TypeName}} {{.Name}} = {{.Order}};
+  {{.TypeName}} {{.Name}} = {{if ne .Tags "" }}{{.Order}} [(tagger.tags) = "{{escapeQuotes .Tags}}"]; {{ else }}{{.Order}}; {{ end }}
 {{- end}}
 {{- end}}
 }
 {{end}}
 `
-	tmpl, err := template.New("test").Parse(msgTemplate)
+	tmpl, err := template.New("test").Funcs(FUNC_MAP).Parse(msgTemplate)
 	if err != nil {
 		panic(err)
 	}

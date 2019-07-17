@@ -23,7 +23,7 @@ type ArrayOfEventField struct {
 }
 
 type EventField struct {
-	ID string
+	ID string `json:"id"`
 
 	Name string
 
