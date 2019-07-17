@@ -213,9 +213,9 @@ import "tagger/tagger.proto";
 message {{.Name}} {
 {{- range .Fields}}
 {{- if .IsRepeated}}
-  repeated {{.TypeName}} {{.Name}} =  {{if ne .Tags "" }}{{.Order}} [(tagger.tags) = "{{escapeQuotes .Tags}}"]; {{ else }}{{.Order}}; {{ end }}
+  repeated {{.TypeName}} {{.Name}} = {{if ne .Tags "" }}{{.Order}} [(tagger.tags) = "{{escapeQuotes .Tags}}"]; {{ else }}{{.Order}};{{ end }}
 {{- else}}
-  {{.TypeName}} {{.Name}} = {{if ne .Tags "" }}{{.Order}} [(tagger.tags) = "{{escapeQuotes .Tags}}"]; {{ else }}{{.Order}}; {{ end }}
+  {{.TypeName}} {{.Name}} = {{if ne .Tags "" }}{{.Order}} [(tagger.tags) = "{{escapeQuotes .Tags}}"]; {{ else }}{{.Order}};{{ end }}
 {{- end}}
 {{- end}}
 }
