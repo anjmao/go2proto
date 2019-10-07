@@ -37,17 +37,23 @@ func main() {
 	flag.Var(&pkgFlags, "p", "Go source packages.")
 	flag.Parse()
 
-	if len(pkgFlags) == 0 || protoFolder == nil {
+	pwd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("error getting working directory: %s", err)
+	}
+
+	if len(pkgFlags) == 0 {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
-	if err := checkOutFolder(*protoFolder); err != nil {
-		log.Fatal(err)
+	if *protoFolder == "" {
+		outDir := "."
+		protoFolder = &outDir
+		log.Println("output flag -f not set, defaulting to working directory")
 	}
 
-	pwd, err := os.Getwd()
-	if err != nil {
+	if err := checkOutFolder(*protoFolder); err != nil {
 		log.Fatal(err)
 	}
 
