@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"flag"
+	"fmt"
 	"go/token"
 	"go/types"
 	"log"
@@ -28,9 +30,9 @@ func (i *arrFlags) Set(value string) error {
 }
 
 var (
-	filter      = flag.String("filter", "", "Filter struct names.")
-	protoFolder = flag.String("f", "", "Proto output path.")
-	pkgFlags    arrFlags
+	filter       = flag.String("filter", "", "Filter struct names.")
+	targetFolder = flag.String("f", "", "Proto output path.")
+	pkgFlags     arrFlags
 )
 
 func main() {
@@ -47,33 +49,32 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *protoFolder == "" {
+	//if output isnt set, set it to wd
+	if *targetFolder == "" {
 		outDir := "."
-		protoFolder = &outDir
+		targetFolder = &outDir
 		log.Println("output flag -f not set, defaulting to working directory")
 	}
 
-	if err := checkOutFolder(*protoFolder); err != nil {
-		log.Fatal(err)
+	//ensure the path exists
+	_, err = os.Stat(*targetFolder)
+	if err != nil {
+		log.Fatalf("error getting output file: %s", err)
 	}
 
 	pkgs, err := loadPackages(pwd, pkgFlags)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error fetching packages: %s", err)
 	}
 
 	msgs := getMessages(pkgs, *filter)
 
-	if err := writeOutput(msgs, *protoFolder); err != nil {
+	if err := writeOutput(msgs, *targetFolder); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func checkOutFolder(path string) error {
-	_, err := os.Stat(path)
-	return err
-}
-
+// attempt to load all packages
 func loadPackages(pwd string, pkgs []string) ([]*packages.Package, error) {
 	fset := token.NewFileSet()
 	cfg := &packages.Config{
@@ -81,7 +82,25 @@ func loadPackages(pwd string, pkgs []string) ([]*packages.Package, error) {
 		Mode: packages.LoadSyntax,
 		Fset: fset,
 	}
-	return packages.Load(cfg, pkgs...)
+	packages, err := packages.Load(cfg, pkgs...)
+	if err != nil {
+		return nil, err
+	}
+	var errs = ""
+	//check each loaded package for errors during loading
+	for _, p := range packages {
+		if len(p.Errors) > 0 {
+			errs += fmt.Sprintf("error fetching package %s: ", p.String())
+			for _, e := range p.Errors {
+				errs += e.Error()
+			}
+			errs += "; "
+		}
+	}
+	if errs != "" {
+		return nil, errors.New(errs)
+	}
+	return packages, nil
 }
 
 type message struct {
