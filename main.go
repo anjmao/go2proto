@@ -30,13 +30,13 @@ func (i *arrFlags) Set(value string) error {
 }
 
 var (
-	filter       = flag.String("filter", "", "Filter struct names.")
-	targetFolder = flag.String("f", "", "Proto output path.")
+	filter       = flag.String("filter", "", "Filter by type names.")
+	targetFolder = flag.String("f", ".", "Protobuf output file path.")
 	pkgFlags     arrFlags
 )
 
 func main() {
-	flag.Var(&pkgFlags, "p", "Go source packages.")
+	flag.Var(&pkgFlags, "p", `Fully qualified path of packages to analyse. Relative paths ("./example/in") are allowed.`)
 	flag.Parse()
 
 	pwd, err := os.Getwd()
@@ -47,13 +47,6 @@ func main() {
 	if len(pkgFlags) == 0 {
 		flag.PrintDefaults()
 		os.Exit(1)
-	}
-
-	//if output isnt set, set it to wd
-	if *targetFolder == "" {
-		outDir := "."
-		targetFolder = &outDir
-		log.Println("output flag -f not set, defaulting to working directory")
 	}
 
 	//ensure the path exists
