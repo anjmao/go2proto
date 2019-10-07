@@ -14,7 +14,7 @@ Generate Protobuf messages from given go structs. No RPC, not gogo syntax, just 
 
 ### Example
 
-Your working directory must be inside of the package you wish to export. Package paths can be fully-qualified or relative.
+Your package you wish to export must be inside of your working directory. Package paths can be fully-qualified or relative.
 
 ```sh
 GO111MODULE=off go get -u github.com/anjmao/go2proto
