@@ -30,7 +30,7 @@ func (i *arrFlags) Set(value string) error {
 }
 
 var (
-	filter       = flag.String("filter", "", "Filter by type names.")
+	filter       = flag.String("filter", "", "Filter by struct names. Case insensitive.")
 	targetFolder = flag.String("f", ".", "Protobuf output file path.")
 	pkgFlags     arrFlags
 )
@@ -60,7 +60,7 @@ func main() {
 		log.Fatalf("error fetching packages: %s", err)
 	}
 
-	msgs := getMessages(pkgs, *filter)
+	msgs := getMessages(pkgs, strings.ToLower(*filter))
 
 	if err := writeOutput(msgs, *targetFolder); err != nil {
 		log.Fatal(err)
@@ -124,7 +124,7 @@ func getMessages(pkgs []*packages.Package, filter string) []*message {
 			}
 			if s, ok := t.Type().Underlying().(*types.Struct); ok {
 				seen[t.Name()] = struct{}{}
-				if filter == "" || strings.Contains(t.Name(), filter) {
+				if filter == "" || strings.Contains(strings.ToLower(t.Name()), filter) {
 					out = appendMessage(out, t, s)
 				}
 			}
