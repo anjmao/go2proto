@@ -20,6 +20,8 @@ import (
 
 type arrFlags []string
 
+const outputFileName = "output.proto"
+
 func (i *arrFlags) String() string {
 	return ""
 }
@@ -62,9 +64,11 @@ func main() {
 
 	msgs := getMessages(pkgs, strings.ToLower(*filter))
 
-	if err := writeOutput(msgs, *targetFolder); err != nil {
-		log.Fatal(err)
+	if err = writeOutput(msgs, *targetFolder); err != nil {
+		log.Fatalf("error writing output: %s", err)
 	}
+
+	log.Printf("output file written to %s%s%s\n", pwd, string(os.PathSeparator), outputFileName)
 }
 
 // attempt to load all packages
@@ -232,9 +236,9 @@ message {{.Name}} {
 		panic(err)
 	}
 
-	f, err := os.Create(filepath.Join(path, "output.proto"))
+	f, err := os.Create(filepath.Join(path, outputFileName))
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to create file %s : %s", outputFileName, err)
 	}
 	defer f.Close()
 
