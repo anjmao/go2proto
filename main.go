@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"flag"
+	"fmt"
 	"go/token"
 	"go/types"
 	"log"
@@ -18,6 +20,8 @@ import (
 
 type arrFlags []string
 
+const outputFileName = "output.proto"
+
 func (i *arrFlags) String() string {
 	return ""
 }
@@ -28,46 +32,46 @@ func (i *arrFlags) Set(value string) error {
 }
 
 var (
-	filter      = flag.String("filter", "", "Filter struct names.")
-	protoFolder = flag.String("f", "", "Proto output path.")
-	pkgFlags    arrFlags
+	filter       = flag.String("filter", "", "Filter by struct names. Case insensitive.")
+	targetFolder = flag.String("f", ".", "Protobuf output file path.")
+	pkgFlags     arrFlags
 )
 
 func main() {
-	flag.Var(&pkgFlags, "p", "Go source packages.")
+	flag.Var(&pkgFlags, "p", `Fully qualified path of packages to analyse. Relative paths ("./example/in") are allowed.`)
 	flag.Parse()
 
-	if len(pkgFlags) == 0 || protoFolder == nil {
+	pwd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("error getting working directory: %s", err)
+	}
+
+	if len(pkgFlags) == 0 {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
-	if err := checkOutFolder(*protoFolder); err != nil {
-		log.Fatal(err)
-	}
-
-	pwd, err := os.Getwd()
+	//ensure the path exists
+	_, err = os.Stat(*targetFolder)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error getting output file: %s", err)
 	}
 
 	pkgs, err := loadPackages(pwd, pkgFlags)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error fetching packages: %s", err)
 	}
 
-	msgs := getMessages(pkgs, *filter)
+	msgs := getMessages(pkgs, strings.ToLower(*filter))
 
-	if err := writeOutput(msgs, *protoFolder); err != nil {
-		log.Fatal(err)
+	if err = writeOutput(msgs, *targetFolder); err != nil {
+		log.Fatalf("error writing output: %s", err)
 	}
+
+	log.Printf("output file written to %s%s%s\n", pwd, string(os.PathSeparator), outputFileName)
 }
 
-func checkOutFolder(path string) error {
-	_, err := os.Stat(path)
-	return err
-}
-
+// attempt to load all packages
 func loadPackages(pwd string, pkgs []string) ([]*packages.Package, error) {
 	fset := token.NewFileSet()
 	cfg := &packages.Config{
@@ -75,7 +79,25 @@ func loadPackages(pwd string, pkgs []string) ([]*packages.Package, error) {
 		Mode: packages.LoadSyntax,
 		Fset: fset,
 	}
-	return packages.Load(cfg, pkgs...)
+	packages, err := packages.Load(cfg, pkgs...)
+	if err != nil {
+		return nil, err
+	}
+	var errs = ""
+	//check each loaded package for errors during loading
+	for _, p := range packages {
+		if len(p.Errors) > 0 {
+			errs += fmt.Sprintf("error fetching package %s: ", p.String())
+			for _, e := range p.Errors {
+				errs += e.Error()
+			}
+			errs += "; "
+		}
+	}
+	if errs != "" {
+		return nil, errors.New(errs)
+	}
+	return packages, nil
 }
 
 type message struct {
@@ -106,7 +128,7 @@ func getMessages(pkgs []*packages.Package, filter string) []*message {
 			}
 			if s, ok := t.Type().Underlying().(*types.Struct); ok {
 				seen[t.Name()] = struct{}{}
-				if filter == "" || strings.Contains(t.Name(), filter) {
+				if filter == "" || strings.Contains(strings.ToLower(t.Name()), filter) {
 					out = appendMessage(out, t, s)
 				}
 			}
@@ -214,9 +236,9 @@ message {{.Name}} {
 		panic(err)
 	}
 
-	f, err := os.Create(filepath.Join(path, "output.proto"))
+	f, err := os.Create(filepath.Join(path, outputFileName))
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to create file %s : %s", outputFileName, err)
 	}
 	defer f.Close()
 
