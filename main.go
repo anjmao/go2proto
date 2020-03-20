@@ -18,46 +18,52 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-type arrFlags []string
+type commaStrings []string
 
 const outputFileName = "output.proto"
 
-func (i *arrFlags) String() string {
+func (i *commaStrings) String() string {
 	return ""
 }
 
-func (i *arrFlags) Set(value string) error {
-	*i = append(*i, value)
+func (i *commaStrings) Set(value string) error {
+	*i = strings.Split(value, ",")
 	return nil
 }
 
 var (
 	filter       = flag.String("filter", "", "Filter by struct names. Case insensitive.")
-	targetFolder = flag.String("f", ".", "Protobuf output file path.")
-	pkgFlags     arrFlags
+	targetFolder = flag.String("f", ".", "Protobuf output directory path.")
+	pkgPaths     commaStrings
 )
 
 func main() {
-	flag.Var(&pkgFlags, "p", `Fully qualified path of packages to analyse. Relative paths ("./example/in") are allowed.`)
+	flag.Var(&pkgPaths, "p", `Comma-separated paths of packages to analyse. Relative paths ("./example/in") are allowed.`)
 	flag.Parse()
 
-	pwd, err := os.Getwd()
-	if err != nil {
-		log.Fatalf("error getting working directory: %s", err)
-	}
-
-	if len(pkgFlags) == 0 {
+	if len(pkgPaths) == 0 {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
-	//ensure the path exists
-	_, err = os.Stat(*targetFolder)
-	if err != nil {
-		log.Fatalf("error getting output file: %s", err)
+	//ensure the output path exists and is a directory
+	info, err := os.Stat(*targetFolder)
+
+	if os.IsNotExist(err) {
+		log.Fatalf("output folder %s does not exist", *targetFolder)
 	}
 
-	pkgs, err := loadPackages(pwd, pkgFlags)
+	if info.Mode().IsRegular() {
+		log.Fatalf("%s is not a directory", *targetFolder)
+	}
+
+	absTargetPath, err := filepath.Abs(*targetFolder)
+
+	if err != nil {
+		log.Fatalf("error getting absolute output folder: %s", err)
+	}
+
+	pkgs, err := loadPackages(pkgPaths)
 	if err != nil {
 		log.Fatalf("error fetching packages: %s", err)
 	}
@@ -68,11 +74,17 @@ func main() {
 		log.Fatalf("error writing output: %s", err)
 	}
 
-	log.Printf("output file written to %s%s%s\n", pwd, string(os.PathSeparator), outputFileName)
+	log.Printf("output file written to %s\n", filepath.Join(absTargetPath, outputFileName))
 }
 
 // attempt to load all packages
-func loadPackages(pwd string, pkgs []string) ([]*packages.Package, error) {
+func loadPackages(pkgs []string) ([]*packages.Package, error) {
+
+	pwd, err := os.Getwd()
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("error getting working directory: %s", err))
+	}
+
 	fset := token.NewFileSet()
 	cfg := &packages.Config{
 		Dir:  pwd,
