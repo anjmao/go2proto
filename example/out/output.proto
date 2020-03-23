@@ -1,6 +1,8 @@
 syntax = "proto3";
 package proto;
 
+import "tagger/tagger.proto";
+
 
 message ArrayOfEventField {
   repeated EventField eventField = 1;
@@ -11,7 +13,7 @@ message ArrayOfEventFieldItem {
 }
 
 message EventField {
-  string id = 1;
+  string id = 1 [(tagger.tags) = "json:\"id\""]; 
   string name = 2;
   string fieldType = 3;
   bool isMandatory = 4;
