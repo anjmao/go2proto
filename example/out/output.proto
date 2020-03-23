@@ -1,0 +1,45 @@
+syntax = "proto3";
+package proto;
+
+import "tagger/tagger.proto";
+
+message ArrayOfEventField {
+  repeated EventField eventField = 1;
+}
+
+message ArrayOfEventFieldItem {
+  repeated EventFieldItem eventFieldItem = 1;
+}
+
+message EventField {
+  string id = 1 [(tagger.tags) = "json:\"id\""]; 
+  string name = 2;
+  string fieldType = 3;
+  bool isMandatory = 4;
+  int32 rank = 5;
+  string tag = 6;
+  ArrayOfEventFieldItem items = 7;
+  int32 customFieldOrder = 8;
+}
+
+message EventFieldItem {
+  string eventFieldItemID = 1;
+  string text = 2;
+  int32 rank = 3;
+  float floatField1 = 4;
+  double floatField2 = 5;
+}
+
+message EventSubForm {
+  string id = 1;
+  string caption = 2;
+  int32 rank = 3;
+  ArrayOfEventField fields = 4;
+  User user = 5;
+  int64 primitivePointer = 6;
+  repeated int64 sliceInt = 7;
+}
+
+message User {
+}
+
