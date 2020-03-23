@@ -82,7 +82,7 @@ func loadPackages(pkgs []string) ([]*packages.Package, error) {
 
 	pwd, err := os.Getwd()
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("error getting working directory: %s", err))
+		return nil, fmt.Errorf("error getting working directory: %s", err)
 	}
 
 	fset := token.NewFileSet()
@@ -242,7 +242,6 @@ func writeOutput(msgs []*message, path string) error {
 package proto;
 
 import "tagger/tagger.proto";
-
 {{range .}}
 message {{.Name}} {
 {{- range .Fields}}
