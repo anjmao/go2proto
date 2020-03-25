@@ -34,6 +34,7 @@ func (i *commaStrings) Set(value string) error {
 var (
 	filter       = flag.String("filter", "", "Filter by struct names. Case insensitive.")
 	targetFolder = flag.String("f", ".", "Protobuf output directory path.")
+	useTags      = flag.Bool("t", false, "Support tagging (requires tagger/tagger.proto plugin)")
 	pkgPaths     commaStrings
 )
 
@@ -70,7 +71,7 @@ func main() {
 
 	msgs := getMessages(pkgs, strings.ToLower(*filter))
 
-	if err = writeOutput(msgs, *targetFolder); err != nil {
+	if err = writeOutput(msgs, *targetFolder, *useTags); err != nil {
 		log.Fatalf("error writing output: %s", err)
 	}
 
@@ -110,6 +111,11 @@ func loadPackages(pkgs []string) ([]*packages.Package, error) {
 		return nil, errors.New(errs)
 	}
 	return packages, nil
+}
+
+type protoData struct {
+	UseTags  bool
+	Messages []*message
 }
 
 type message struct {
@@ -229,41 +235,55 @@ func toProtoFieldName(name string) string {
 	return string(unicode.ToLower(r)) + name[n:]
 }
 
-func escapeQuotes(tag string) string {
-	return strings.Replace(tag, `"`, `\"`, -1)
-}
+func writeOutput(msgs []*message, path string, useTags bool) error {
 
-var FUNC_MAP = template.FuncMap{
-	"escapeQuotes": escapeQuotes,
-}
+	protobufTemplate := `{{- define "field" }}{{.TypeName}} {{.Name}} = {{.Order}}{{if writeTags . }} [(tagger.tags) = "{{escapeQuotes .Tags}}"]{{ end }};{{ end -}}
+syntax = "proto3";
 
-func writeOutput(msgs []*message, path string) error {
-	msgTemplate := `syntax = "proto3";
 package proto;
+{{- if importTagger}}
 
-import "tagger/tagger.proto";
+import "tagger/tagger.proto";{{end}}
 {{range .}}
 message {{.Name}} {
 {{- range .Fields}}
-{{- if .IsRepeated}}
-  repeated {{.TypeName}} {{.Name}} = {{if ne .Tags "" }}{{.Order}} [(tagger.tags) = "{{escapeQuotes .Tags}}"]; {{ else }}{{.Order}};{{ end }}
-{{- else}}
-  {{.TypeName}} {{.Name}} = {{if ne .Tags "" }}{{.Order}} [(tagger.tags) = "{{escapeQuotes .Tags}}"]; {{ else }}{{.Order}};{{ end }}
-{{- end}}
+  {{ if .IsRepeated}}repeated {{ end }}{{ template "field" . }}
 {{- end}}
 }
 {{end}}
 `
-	tmpl, err := template.New("test").Funcs(FUNC_MAP).Parse(msgTemplate)
-	if err != nil {
-		panic(err)
-	}
-
 	f, err := os.Create(filepath.Join(path, outputFileName))
 	if err != nil {
 		return fmt.Errorf("unable to create file %s : %s", outputFileName, err)
 	}
 	defer f.Close()
+
+	customFuncMap := template.FuncMap{
+		"escapeQuotes": func(tag string) string {
+			return strings.Replace(tag, `"`, `\"`, -1)
+		},
+		"writeTags": func(f field) bool {
+			return useTags && f.Tags != ""
+		},
+		"importTagger": func() bool {
+			if !useTags {
+				return false
+			}
+			for _, msg := range msgs {
+				for _, field := range msg.Fields {
+					if field.Tags != "" {
+						return true
+					}
+				}
+			}
+			return false
+		},
+	}
+
+	tmpl, err := template.New("protobuf").Funcs(customFuncMap).Parse(protobufTemplate)
+	if err != nil {
+		panic(err)
+	}
 
 	return tmpl.Execute(f, msgs)
 }
