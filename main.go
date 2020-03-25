@@ -113,11 +113,6 @@ func loadPackages(pkgs []string) ([]*packages.Package, error) {
 	return packages, nil
 }
 
-type protoData struct {
-	UseTags  bool
-	Messages []*message
-}
-
 type message struct {
 	Name   string
 	Fields []*field
@@ -182,34 +177,24 @@ func appendMessage(out []*message, t types.Object, s *types.Struct) []*message {
 }
 
 func toProtoFieldTypeName(f *types.Var) string {
+
 	switch f.Type().Underlying().(type) {
 	case *types.Basic:
 		name := f.Type().String()
-		return normalizeType(name)
-	case *types.Slice:
-		name := splitNameHelper(f)
-		return normalizeType(strings.TrimLeft(name, "[]"))
-
-	case *types.Pointer, *types.Struct:
-		name := splitNameHelper(f)
-		return normalizeType(name)
+		return protobufType(name)
+	case *types.Slice, *types.Pointer, *types.Struct:
+		name := simpleName(f)
+		return protobufType(name)
+	default:
+		return f.Type().String()
 	}
-	return f.Type().String()
 }
 
-func splitNameHelper(f *types.Var) string {
-	// TODO: this is ugly. Find another way of getting field type name.
-	parts := strings.Split(f.Type().String(), ".")
-
-	name := parts[len(parts)-1]
-
-	if name[0] == '*' {
-		name = name[1:]
-	}
-	return name
+func simpleName(f *types.Var) string {
+	return strings.TrimPrefix(strings.TrimLeft(f.Type().String(), "[]*"), f.Pkg().Path()+".")
 }
 
-func normalizeType(name string) string {
+func protobufType(name string) string {
 	switch name {
 	case "int":
 		return "int64"
