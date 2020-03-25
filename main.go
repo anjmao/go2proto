@@ -34,7 +34,7 @@ func (i *commaStrings) Set(value string) error {
 var (
 	filter       = flag.String("filter", "", "Filter by struct names. Case insensitive.")
 	targetFolder = flag.String("f", ".", "Protobuf output directory path.")
-	useTags      = flag.Bool("t", false, "Support tagging (requires tagger/tagger.proto plugin)")
+	useTags      = flag.Bool("t", false, "Add import tagger/tagger.proto and write tag extensions if any of the structs are tagged.")
 	pkgPaths     commaStrings
 )
 

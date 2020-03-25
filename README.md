@@ -4,12 +4,13 @@ Generate Protobuf messages from given go structs. No RPC, not gogo syntax, just 
 
 ### Syntax
 ```
--f string
-    Protobuf output file path. (default ".")
--filter string
-    Filter by struct names. Case insensitive.
--p value
-    Fully qualified path of packages to analyse. Relative paths ("./example/in") are allowed.
+  -f string
+        Protobuf output directory path. (default ".")
+  -filter string
+        Filter by struct names. Case insensitive.
+  -p value
+        Comma-separated paths of packages to analyse. Relative paths ("./example/in") are allowed.
+  -t    Add import tagger/tagger.proto and write tag extensions if any of the structs are tagged.
 ```
 
 ### Example
