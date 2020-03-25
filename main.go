@@ -18,61 +18,74 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-type arrFlags []string
+type commaStrings []string
 
 const outputFileName = "output.proto"
 
-func (i *arrFlags) String() string {
+func (i *commaStrings) String() string {
 	return ""
 }
 
-func (i *arrFlags) Set(value string) error {
-	*i = append(*i, value)
+func (i *commaStrings) Set(value string) error {
+	*i = strings.Split(value, ",")
 	return nil
 }
 
 var (
 	filter       = flag.String("filter", "", "Filter by struct names. Case insensitive.")
-	targetFolder = flag.String("f", ".", "Protobuf output file path.")
-	pkgFlags     arrFlags
+	targetFolder = flag.String("f", ".", "Protobuf output directory path.")
+	useTags      = flag.Bool("t", false, "Add import tagger/tagger.proto and write tag extensions if any of the structs are tagged.")
+	pkgPaths     commaStrings
 )
 
 func main() {
-	flag.Var(&pkgFlags, "p", `Fully qualified path of packages to analyse. Relative paths ("./example/in") are allowed.`)
+	flag.Var(&pkgPaths, "p", `Comma-separated paths of packages to analyse. Relative paths ("./example/in") are allowed.`)
 	flag.Parse()
 
-	pwd, err := os.Getwd()
-	if err != nil {
-		log.Fatalf("error getting working directory: %s", err)
-	}
-
-	if len(pkgFlags) == 0 {
+	if len(pkgPaths) == 0 {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
-	//ensure the path exists
-	_, err = os.Stat(*targetFolder)
-	if err != nil {
-		log.Fatalf("error getting output file: %s", err)
+	//ensure the output path exists and is a directory
+	info, err := os.Stat(*targetFolder)
+
+	if os.IsNotExist(err) {
+		log.Fatalf("output folder %s does not exist", *targetFolder)
 	}
 
-	pkgs, err := loadPackages(pwd, pkgFlags)
+	if info.Mode().IsRegular() {
+		log.Fatalf("%s is not a directory", *targetFolder)
+	}
+
+	absTargetPath, err := filepath.Abs(*targetFolder)
+
+	if err != nil {
+		log.Fatalf("error getting absolute output folder: %s", err)
+	}
+
+	pkgs, err := loadPackages(pkgPaths)
 	if err != nil {
 		log.Fatalf("error fetching packages: %s", err)
 	}
 
 	msgs := getMessages(pkgs, strings.ToLower(*filter))
 
-	if err = writeOutput(msgs, *targetFolder); err != nil {
+	if err = writeOutput(msgs, *targetFolder, *useTags); err != nil {
 		log.Fatalf("error writing output: %s", err)
 	}
 
-	log.Printf("output file written to %s%s%s\n", pwd, string(os.PathSeparator), outputFileName)
+	log.Printf("output file written to %s\n", filepath.Join(absTargetPath, outputFileName))
 }
 
 // attempt to load all packages
-func loadPackages(pwd string, pkgs []string) ([]*packages.Package, error) {
+func loadPackages(pkgs []string) ([]*packages.Package, error) {
+
+	pwd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("error getting working directory: %s", err)
+	}
+
 	fset := token.NewFileSet()
 	cfg := &packages.Config{
 		Dir:  pwd,
@@ -100,6 +113,11 @@ func loadPackages(pwd string, pkgs []string) ([]*packages.Package, error) {
 	return packages, nil
 }
 
+type protoData struct {
+	UseTags  bool
+	Messages []*message
+}
+
 type message struct {
 	Name   string
 	Fields []*field
@@ -110,6 +128,7 @@ type field struct {
 	TypeName   string
 	Order      int
 	IsRepeated bool
+	Tags       string
 }
 
 func getMessages(pkgs []*packages.Package, filter string) []*message {
@@ -154,6 +173,7 @@ func appendMessage(out []*message, t types.Object, s *types.Struct) []*message {
 			TypeName:   toProtoFieldTypeName(f),
 			IsRepeated: isRepeated(f),
 			Order:      i + 1,
+			Tags:       s.Tag(i),
 		}
 		msg.Fields = append(msg.Fields, newField)
 	}
@@ -215,32 +235,55 @@ func toProtoFieldName(name string) string {
 	return string(unicode.ToLower(r)) + name[n:]
 }
 
-func writeOutput(msgs []*message, path string) error {
-	msgTemplate := `syntax = "proto3";
-package proto;
+func writeOutput(msgs []*message, path string, useTags bool) error {
 
+	protobufTemplate := `{{- define "field" }}{{.TypeName}} {{.Name}} = {{.Order}}{{if writeTags . }} [(tagger.tags) = "{{escapeQuotes .Tags}}"]{{ end }};{{ end -}}
+syntax = "proto3";
+
+package proto;
+{{- if importTagger}}
+
+import "tagger/tagger.proto";{{end}}
 {{range .}}
 message {{.Name}} {
 {{- range .Fields}}
-{{- if .IsRepeated}}
-  repeated {{.TypeName}} {{.Name}} = {{.Order}};
-{{- else}}
-  {{.TypeName}} {{.Name}} = {{.Order}};
-{{- end}}
+  {{ if .IsRepeated}}repeated {{ end }}{{ template "field" . }}
 {{- end}}
 }
 {{end}}
 `
-	tmpl, err := template.New("test").Parse(msgTemplate)
-	if err != nil {
-		panic(err)
-	}
-
 	f, err := os.Create(filepath.Join(path, outputFileName))
 	if err != nil {
 		return fmt.Errorf("unable to create file %s : %s", outputFileName, err)
 	}
 	defer f.Close()
+
+	customFuncMap := template.FuncMap{
+		"escapeQuotes": func(tag string) string {
+			return strings.Replace(tag, `"`, `\"`, -1)
+		},
+		"writeTags": func(f field) bool {
+			return useTags && f.Tags != ""
+		},
+		"importTagger": func() bool {
+			if !useTags {
+				return false
+			}
+			for _, msg := range msgs {
+				for _, field := range msg.Fields {
+					if field.Tags != "" {
+						return true
+					}
+				}
+			}
+			return false
+		},
+	}
+
+	tmpl, err := template.New("protobuf").Funcs(customFuncMap).Parse(protobufTemplate)
+	if err != nil {
+		panic(err)
+	}
 
 	return tmpl.Execute(f, msgs)
 }
