@@ -110,6 +110,7 @@ type field struct {
 	TypeName   string
 	Order      int
 	IsRepeated bool
+	Tag        string
 }
 
 func getMessages(pkgs []*packages.Package, filter string) []*message {
@@ -154,6 +155,7 @@ func appendMessage(out []*message, t types.Object, s *types.Struct) []*message {
 			TypeName:   toProtoFieldTypeName(f),
 			IsRepeated: isRepeated(f),
 			Order:      i + 1,
+			Tag:        s.Tag(i),
 		}
 		msg.Fields = append(msg.Fields, newField)
 	}
@@ -222,6 +224,7 @@ package proto;
 {{range .}}
 message {{.Name}} {
 {{- range .Fields}}
+// @gotags: {{.Tag}}
 {{- if .IsRepeated}}
   repeated {{.TypeName}} {{.Name}} = {{.Order}};
 {{- else}}
