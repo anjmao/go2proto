@@ -19,7 +19,8 @@ Your package you wish to export must be inside of your working directory. Packag
 ```sh
 GO111MODULE=off go get -u github.com/anjmao/go2proto
 cd ~/go/src/github.com/anjmao/go2proto
-go2proto -f ./example/out -p ./example/in
+go build
+./go2proto -f ./example/out -p ./example/in
 ```
 
 ### Note
