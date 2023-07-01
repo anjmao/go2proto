@@ -64,7 +64,7 @@ func main() {
 
 	msgs := getMessages(pkgs, strings.ToLower(*filter))
 
-	if err = writeOutput(msgs, *targetFolder); err != nil {
+	if err = WriteToFile(msgs, *targetFolder); err != nil {
 		log.Fatalf("error writing output: %s", err)
 	}
 
@@ -100,20 +100,20 @@ func loadPackages(pwd string, pkgs []string) ([]*packages.Package, error) {
 	return packages, nil
 }
 
-type message struct {
+type ProtoMessage struct {
 	Name   string
-	Fields []*field
+	Fields []*MessageField
 }
 
-type field struct {
+type MessageField struct {
 	Name       string
 	TypeName   string
 	Order      int
 	IsRepeated bool
 }
 
-func getMessages(pkgs []*packages.Package, filter string) []*message {
-	var out []*message
+func getMessages(pkgs []*packages.Package, filter string) []*ProtoMessage {
+	var out []*ProtoMessage
 	seen := map[string]struct{}{}
 	for _, p := range pkgs {
 		for _, t := range p.TypesInfo.Defs {
@@ -129,7 +129,7 @@ func getMessages(pkgs []*packages.Package, filter string) []*message {
 			if s, ok := t.Type().Underlying().(*types.Struct); ok {
 				seen[t.Name()] = struct{}{}
 				if filter == "" || strings.Contains(strings.ToLower(t.Name()), filter) {
-					out = appendMessage(out, t, s)
+					out = StructToProto(out, t, s)
 				}
 			}
 		}
@@ -138,10 +138,10 @@ func getMessages(pkgs []*packages.Package, filter string) []*message {
 	return out
 }
 
-func appendMessage(out []*message, t types.Object, s *types.Struct) []*message {
-	msg := &message{
+func StructToProto(out []*ProtoMessage, t types.Object, s *types.Struct) []*ProtoMessage {
+	msg := &ProtoMessage{
 		Name:   t.Name(),
-		Fields: []*field{},
+		Fields: []*MessageField{},
 	}
 
 	for i := 0; i < s.NumFields(); i++ {
@@ -149,9 +149,9 @@ func appendMessage(out []*message, t types.Object, s *types.Struct) []*message {
 		if !f.Exported() {
 			continue
 		}
-		newField := &field{
-			Name:       toProtoFieldName(f.Name()),
-			TypeName:   toProtoFieldTypeName(f),
+		newField := &MessageField{
+			Name:       AdaptNameToProto(f.Name()),
+			TypeName:   AdaptGoTypeToProto(f),
 			IsRepeated: isRepeated(f),
 			Order:      i + 1,
 		}
@@ -161,7 +161,7 @@ func appendMessage(out []*message, t types.Object, s *types.Struct) []*message {
 	return out
 }
 
-func toProtoFieldTypeName(f *types.Var) string {
+func AdaptGoTypeToProto(f *types.Var) string {
 	switch f.Type().Underlying().(type) {
 	case *types.Basic:
 		name := f.Type().String()
@@ -178,7 +178,7 @@ func toProtoFieldTypeName(f *types.Var) string {
 }
 
 func splitNameHelper(f *types.Var) string {
-	// TODO: this is ugly. Find another way of getting field type name.
+	// TODO: this is ugly. Find another way of getting MessageField type name.
 	parts := strings.Split(f.Type().String(), ".")
 
 	name := parts[len(parts)-1]
@@ -207,7 +207,7 @@ func isRepeated(f *types.Var) bool {
 	return ok
 }
 
-func toProtoFieldName(name string) string {
+func AdaptNameToProto(name string) string {
 	if len(name) == 2 {
 		return strings.ToLower(name)
 	}
@@ -215,12 +215,12 @@ func toProtoFieldName(name string) string {
 	return string(unicode.ToLower(r)) + name[n:]
 }
 
-func writeOutput(msgs []*message, path string) error {
+func WriteToFile(msgs []*ProtoMessage, path string) error {
 	msgTemplate := `syntax = "proto3";
 package proto;
 
 {{range .}}
-message {{.Name}} {
+ProtoMessage {{.Name}} {
 {{- range .Fields}}
 {{- if .IsRepeated}}
   repeated {{.TypeName}} {{.Name}} = {{.Order}};
