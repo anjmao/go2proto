@@ -171,12 +171,18 @@ func AdaptNameToProto(name string) string {
 	return string(unicode.ToLower(r)) + name[n:]
 }
 
-func WriteToFile(msgs []*ProtoMessage, path string, outputFileName string) error {
-	msgTemplate := `syntax = "proto3";
+type ProtoFileTemplateData struct {
+	Version  int
+	Messages []*ProtoMessage
+}
+
+func WriteToFile(version int, msgs []*ProtoMessage, path string, outputFileName string) error {
+	msgTemplate := `// version {{ .Version }}
+syntax = "proto3";
 package proto;
 option go_package = "./";
 
-{{range .}}
+{{range .Messages}}
 message {{.Name}} {
 {{- range .Fields}}
 {{- if .IsRepeated}}
@@ -199,5 +205,5 @@ message {{.Name}} {
 	}
 	defer f.Close()
 
-	return tmpl.Execute(f, msgs)
+	return tmpl.Execute(f, &ProtoFileTemplateData{Version: version, Messages: msgs})
 }

@@ -43,7 +43,7 @@ func main() {
 
 	msgs := importable.GetMessages(pkgs, strings.ToLower(*filter))
 
-	if err = importable.WriteToFile(msgs, *targetFolder, outputFileName); err != nil {
+	if err = importable.WriteToFile(1, msgs, *targetFolder, outputFileName); err != nil {
 		log.Fatalf("error writing output: %s", err)
 	}
 
