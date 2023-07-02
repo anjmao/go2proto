@@ -174,9 +174,10 @@ func AdaptNameToProto(name string) string {
 func WriteToFile(msgs []*ProtoMessage, path string, outputFileName string) error {
 	msgTemplate := `syntax = "proto3";
 package proto;
+option go_package = "./";
 
 {{range .}}
-ProtoMessage {{.Name}} {
+message {{.Name}} {
 {{- range .Fields}}
 {{- if .IsRepeated}}
   repeated {{.TypeName}} {{.Name}} = {{.Order}};
