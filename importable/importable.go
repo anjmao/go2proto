@@ -172,11 +172,11 @@ func AdaptNameToProto(name string) string {
 }
 
 type ProtoFileTemplateData struct {
-	Version  int
+	Version  float32
 	Messages []*ProtoMessage
 }
 
-func WriteToFile(version int, msgs []*ProtoMessage, path string, outputFileName string) error {
+func WriteToFile(version float32, msgs []*ProtoMessage, path string, outputFileName string) error {
 	msgTemplate := `// version {{ .Version }}
 syntax = "proto3";
 package proto;
